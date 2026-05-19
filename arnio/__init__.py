@@ -16,6 +16,7 @@ from .cleaning import (
     clean,
     clip_numeric,
     combine_columns,
+    drop_columns,
     drop_columns_matching,
     drop_constant_columns,
     drop_duplicates,
@@ -93,6 +94,7 @@ __all__ = [
     "scan_csv",
     # Cleaning
     "drop_nulls",
+    "drop_columns",
     "keep_rows_with_nulls",
     "fill_nulls",
     "validate_columns_exist",
