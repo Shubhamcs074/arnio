@@ -102,7 +102,8 @@ class CsvChunkReader {
     bool read_one_data_row(std::vector<std::string>& fields_out,
                            const std::string& on_bad_lines = "error",
                            std::vector<BadRow>* bad_rows_out = nullptr);
-    Frame build_frame(const std::vector<std::vector<std::string>>& raw_data) const;
+    Frame build_frame(const std::vector<std::vector<std::string>>& raw_data,
+                      bool validate_locked_schema = false) const;
 };
 
 }  // namespace arnio
