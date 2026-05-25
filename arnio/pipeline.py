@@ -100,12 +100,12 @@ def _get_namespaced_builtin_steps(
 
 
 def register_step(name: str, fn: Callable, overwrite: bool = False):
-    """Register a custom Python pipeline step.
+    """Register a custom Python pipeline step with fail-fast input validation.
 
     Parameters
     ----------
     name : str
-        Name of the step for use in pipelines.
+        Name of the step for use in pipelines. Must be a non-empty string.
     fn : Callable
         Function to call for this step. Should accept (df, **kwargs) and return modified df.
     overwrite : bool, default False
@@ -115,19 +115,20 @@ def register_step(name: str, fn: Callable, overwrite: bool = False):
     Raises
     ------
     ValueError
-        If the step name conflicts with a built-in C++ step name, or if the name
-        conflicts with an existing custom Python step and `overwrite` is False.
-
-    Examples
-    --------
-    >>> def custom_clean(df, threshold=0.5):
-    ...     return df.dropna(thresh=threshold)
-    >>> ar.register_step("custom_clean", custom_clean)
-    # Overwriting an existing custom step intentionally
-    >>> def new_custom_clean(df):
-    ...     return df
-    >>> ar.register_step("custom_clean", new_custom_clean, overwrite=True)
+        If the step name is an empty string/whitespace, conflicts with a built-in
+        C++ step name, or conflicts with an existing custom Python step and `overwrite` is False.
+    TypeError
+        If the provided `fn` object is not a callable function or class.
     """
+    # Fail-Fast parameter validation checks
+    if not isinstance(name, str) or name.strip() == "":
+        raise ValueError("Step name must be a non-empty string.")
+
+    if not callable(fn):
+        raise TypeError(
+            f"Step function or class must be a callable object. Got {type(fn).__name__} instead."
+        )
+
     with _REGISTRY_LOCK:
         if name.startswith(f"{_BUILTIN_STEP_NAMESPACE}{_STEP_NAMESPACE_SEPARATOR}"):
             raise ValueError(
@@ -138,11 +139,11 @@ def register_step(name: str, fn: Callable, overwrite: bool = False):
         if name in _STEP_REGISTRY:
             raise ValueError(
                 f"Cannot register '{name}': conflicts with built-in C++ step. "
-                f"Use a different name."
+                "Use a different name."
             )
         if name in _DEPRECATED_STEP_ALIASES:
             raise ValueError(
-                f"Cannot register '{name}': that name is reserved as a deprecated "
+                "Cannot register '" + name + "': that name is reserved as a deprecated "
                 "pipeline step alias."
             )
         if name in _PYTHON_STEP_REGISTRY and not overwrite:
@@ -152,7 +153,7 @@ def register_step(name: str, fn: Callable, overwrite: bool = False):
             )
         _PYTHON_STEP_REGISTRY[name] = fn
 
-
+        
 def get_builtin_step_signatures() -> dict[str, inspect.Signature]:
     """Return normalized signatures for built-in pipeline steps.
 
