@@ -65,7 +65,7 @@ jobs:
         env:
           CIBW_ARCHS_MACOS: "x86_64 arm64"
           CIBW_TEST_COMMAND: >-
-            python -c "import pathlib, sys, pytest; sys.path.append(str(pathlib.Path(r'{project}'))); raise SystemExit(pytest.main([str(pathlib.Path(r'{project}') / 'tests'), '-v', '--tb=short', '-x']))"
+            python -c "import pathlib, sys, pytest; sys.path.append(str(pathlib.Path(r'{project}'))); raise SystemExit(pytest.main([str(pathlib.Path(r'{project}') / 'tests'), '-v', '--tb=short', '[...]
 
       - name: Set up Python for wheel smoke test
         uses: actions/setup-python@v6
@@ -81,24 +81,3 @@ jobs:
           name: wheels-${{ matrix.os }}
           path: ./wheelhouse/*.whl
           retention-days: 7
-
-  publish:
-    name: Publish to PyPI
-    needs: [build_wheels, build_sdist]
-    runs-on: ubuntu-latest
-    environment: pypi  # requires a "pypi" environment configured in repo settings
-    permissions:
-      id-token: write  # required for trusted publishing
-
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v7
-        with:
-          pattern: '*'
-          merge-multiple: true
-          path: dist/
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          attestations: false
