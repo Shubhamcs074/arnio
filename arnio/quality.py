@@ -515,7 +515,7 @@ class DataQualityReport:
         )
         lines.append("</div>")
         lines.append(
-            f"<div class=\"pill\"><span class=\"muted\">Quality score</span> <span class=\"score {score_class(self.quality_score)}\">{e(f'{self.quality_score:.2f}')}</span></div>"
+            f'<div class="pill"><span class="muted">Quality score</span> <span class="score {score_class(self.quality_score)}">{e(f"{self.quality_score:.2f}")}</span></div>'
         )
         lines.append("</div>")
 
@@ -546,7 +546,7 @@ class DataQualityReport:
                 cls = "warn" if value < 0 else "muted"
                 lines.append("<tr>")
                 lines.append(f"<td><code>{e(key)}</code></td>")
-                lines.append(f"<td class=\"{cls}\">{e(f'{value:+.2f}')}</td>")
+                lines.append(f'<td class="{cls}">{e(f"{value:+.2f}")}</td>')
                 lines.append("</tr>")
             lines.append("</tbody>")
             lines.append("</table>")
@@ -574,7 +574,7 @@ class DataQualityReport:
                     top_bits: list[str] = []
                     for v, _c, r in col.top_values[:3]:
                         top_bits.append(
-                            f"<span class=\"chip\">{e(v)} · {e(f'{r:.0%}')}</span>"
+                            f'<span class="chip">{e(v)} · {e(f"{r:.0%}")}</span>'
                         )
                     top_html = "".join(top_bits)
                 elif col.histogram:
@@ -598,7 +598,7 @@ class DataQualityReport:
                         f'<div style="display:inline-flex;align-items:flex-end;gap:1.5px;'
                         f'height:20px;width:100px;background:#f3f4f6;border-radius:3px;padding:2px;" '
                         f'title="Numeric Distribution Histogram">'
-                        f'{"".join(bars)}'
+                        f"{''.join(bars)}"
                         f"</div>"
                     )
                 else:
@@ -610,19 +610,19 @@ class DataQualityReport:
                 lines.append(f"<td>{e(col.semantic_type)}</td>")
                 lines.append(
                     "<td>"
-                    f"{e(col.null_count)} <span class=\"muted\">({e(f'{null_pct:.1f}%')})</span>"
+                    f'{e(col.null_count)} <span class="muted">({e(f"{null_pct:.1f}%")})</span>'
                     f'<div class="bar"><span style="width:{max(0.0, min(100.0, null_pct)):.2f}%"></span></div>'
                     "</td>"
                 )
                 lines.append(
                     "<td>"
-                    f"{e(col.unique_count)} <span class=\"muted\">({e(f'{unique_pct:.1f}%')})</span>"
+                    f'{e(col.unique_count)} <span class="muted">({e(f"{unique_pct:.1f}%")})</span>'
                     f'<div class="bar"><span style="width:{max(0.0, min(100.0, unique_pct)):.2f}%"></span></div>'
                     "</td>"
                 )
                 lines.append(f"<td>{top_html}</td>")
                 lines.append(
-                    f"<td class=\"{'warn' if col.warnings else 'muted'}\">{e(warnings_str)}</td>"
+                    f'<td class="{"warn" if col.warnings else "muted"}">{e(warnings_str)}</td>'
                 )
                 lines.append(f"<td>{e(suggested)}</td>")
                 lines.append("</tr>")
@@ -745,24 +745,30 @@ class ProfileComparison:
         *,
         exclude_columns: list[str] | set[str] | tuple[str, ...] | None = None,
     ) -> dict[str, Any]:
-        """Return a JSON-friendly dictionary representation."""
-        if exclude_columns is not None:
-            exclude_columns = set(exclude_columns)
+        """Return a JSON-friendly dictionary representation of the comparison.
 
+        Parameters
+        ----------
+        exclude_columns : collection of str, optional
+            Column names to completely omit from the final output for privacy or
+            performance reasons. Works downstream on both comparison profiles.
+        """
+        # 1. Normalize the exclusion filter into a set for O(1) performance lookup
+        exclude_set = set(exclude_columns) if exclude_columns is not None else None
+
+        # 2. Build the sanitized dictionary payload
         return {
-            "left_profile": self.left_profile.to_dict(
-                exclude_columns=exclude_columns
-            ),
-            "right_profile": self.right_profile.to_dict(
-                exclude_columns=exclude_columns
-            ),
+            "left_profile": self.left_profile.to_dict(exclude_columns=exclude_set),
+            "right_profile": self.right_profile.to_dict(exclude_columns=exclude_set),
             "status_counts": dict(self.status_counts),
+            # 3. Prevent structural drift details leakage by filtering keys
             "drift_report": {
-                name: _clean_drift_entry(entry)
-                for name, entry in self.drift_report.items()
-                if exclude_columns is None or name not in exclude_columns
+                col_name: _clean_drift_entry(entry)
+                for col_name, entry in self.drift_report.items()
+                if exclude_set is None or col_name not in exclude_set
             },
         }
+
 
 @dataclass(frozen=True)
 class QualityGateIssue:

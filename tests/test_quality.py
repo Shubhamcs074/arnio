@@ -926,7 +926,7 @@ def test_profile_exclude_columns_default_behavior(sample_csv):
 def test_profile_exclude_columns_valid_exclusion(tmp_path):
     path = tmp_path / "profile_exclude.csv"
     path.write_text(
-        "id,status,raw_payload\n" "1,active,{a}\n" "2,inactive,{b}\n" "3,active,{c}\n",
+        "id,status,raw_payload\n1,active,{a}\n2,inactive,{b}\n3,active,{c}\n",
         encoding="utf-8",
     )
 
@@ -993,7 +993,7 @@ def test_profile_exclude_columns_rejects_non_string_items(sample_csv):
 def test_profile_exclude_columns_scopes_report_metrics_and_suggestions(tmp_path):
     path = tmp_path / "profile_scope.csv"
     path.write_text(
-        "id,score\n" "1,10\n" "1,10\n" "2,20\n",
+        "id,score\n1,10\n1,10\n2,20\n",
         encoding="utf-8",
     )
 
@@ -2543,9 +2543,12 @@ def test_data_quality_report_to_json_redact_sample_values():
 
     assert parsed["columns"]["name"]["sample_values"] == ["[REDACTED]"]
 
+
 def test_auto_clean_dry_run_with_return_report_raises_value_error():
     frame = ar.from_pandas(pd.DataFrame({"name": [" Alice "]}))
-    with pytest.raises(ValueError, match="return_report=True cannot be used with dry_run=True"):
+    with pytest.raises(
+        ValueError, match="return_report=True cannot be used with dry_run=True"
+    ):
         ar.auto_clean(frame, dry_run=True, return_report=True)
 
 
@@ -2554,3 +2557,60 @@ def test_auto_clean_dry_run_never_returns_tuple():
     result = ar.auto_clean(frame, dry_run=True)
     assert isinstance(result, ar.DataQualityReport)
     assert not isinstance(result, tuple)
+
+
+def test_profile_comparison_to_dict_exclude_columns():
+    import arnio as ar
+    from arnio._core import _DType, _Frame
+    from arnio.frame import ArFrame
+
+    # Construct two identical single-row frames containing sensitive elements
+    cpp_frame = _Frame.from_dict(
+        {
+            "name": ["John"],
+            "secret_key": ["xyz789"],
+            "salary": [60000],
+        },
+        {
+            "name": _DType.STRING,
+            "secret_key": _DType.STRING,
+            "salary": _DType.INT64,
+        },
+    )
+    frame = ArFrame(cpp_frame)
+
+    # Compare profiles against itself
+    left_p = ar.profile(frame)
+    right_p = ar.profile(frame)
+    comparison = ar.compare_profiles(left_p, right_p)
+
+    # Invoke exclusion rules
+    excluded = ["secret_key", "salary"]
+    res = comparison.to_dict(exclude_columns=excluded)
+
+    # Assert standard components exist
+    assert "name" in res["left_profile"]["columns"]
+    assert "name" in res["drift_report"]
+
+    # Assert target sensitive columns are fully purged
+    for side in ["left_profile", "right_profile"]:
+        for col in excluded:
+            assert col not in res[side]["columns"]
+
+    for col in excluded:
+        assert col not in res["drift_report"]
+
+
+def test_profile_comparison_to_dict_empty_default():
+    import arnio as ar
+    from arnio._core import _DType, _Frame
+    from arnio.frame import ArFrame
+
+    cpp_frame = _Frame.from_dict({"age": [30]}, {"age": _DType.INT64})
+    frame = ArFrame(cpp_frame)
+
+    comparison = ar.compare_profiles(ar.profile(frame), ar.profile(frame))
+
+    # Verify backward compatibility (calling to_dict without parameters doesn't fail)
+    res = comparison.to_dict()
+    assert "age" in res["left_profile"]["columns"]
