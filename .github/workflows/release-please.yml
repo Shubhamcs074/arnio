@@ -31,3 +31,25 @@ jobs:
     uses: ./.github/workflows/build_wheels.yml
     with:
       tag_name: ${{ needs.release-please.outputs.tag_name }}
+
+  publish:
+    name: Publish to PyPI
+    needs: [build-and-publish]
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    environment: pypi  # requires a "pypi" environment configured in repo settings
+    permissions:
+      id-token: write  # required for trusted publishing
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: '*'
+          merge-multiple: true
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: false
